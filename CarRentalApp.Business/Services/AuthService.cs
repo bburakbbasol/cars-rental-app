@@ -1,67 +1,72 @@
+using CarRentalApp.Business.Jwt;
 using CarRentalApp.Business.Models;
 using CarRentalApp.Data.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace CarRentalApp.Business.Services
 {
     public class AuthService : IAuthService
     {
         private readonly UserManager<User> _userManager;
+        private readonly RoleManager<IdentityRole> _roleManager; // RoleManager ekledik
         private readonly IConfiguration _configuration;
+        private readonly JwtHelper _jwtHelper;
 
-        public AuthService(UserManager<User> userManager, IConfiguration configuration)
+        public AuthService(
+            UserManager<User> userManager,
+            RoleManager<IdentityRole> roleManager, // RoleManager'ý constructor'a ekliyoruz
+            IConfiguration configuration,
+            JwtHelper jwtHelper)
         {
             _userManager = userManager;
+            _roleManager = roleManager;  // RoleManager'ý buraya atýyoruz
             _configuration = configuration;
+            _jwtHelper = jwtHelper;
         }
 
-        public async Task<string> LoginAsync(LoginDto loginDto)
-        {
-            var user = await _userManager.FindByEmailAsync(loginDto.Email);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
-                throw new UnauthorizedAccessException();
-
-            return GenerateJwtToken(user);
-        }
-
-        public async Task<bool> RegisterAsync(RegisterDto registerDto)
+        public async Task<bool> RegisterAsync(RegisterDto dto)
         {
             var user = new User
             {
-                UserName = registerDto.Email,
-                Email = registerDto.Email,
-                FirstName = registerDto.FirstName,
-                LastName = registerDto.LastName
+                UserName = dto.Email,
+                Email = dto.Email,
+                FirstName = dto.FirstName,
+                LastName = dto.LastName,
+                PhoneNumber = dto.PhoneNumber,
+                CreatedAt = DateTime.UtcNow
             };
 
-            var result = await _userManager.CreateAsync(user, registerDto.Password);
-            return result.Succeeded;
-        }
-
-        private string GenerateJwtToken(User user)
-        {
-            var claims = new[]
+            var result = await _userManager.CreateAsync(user, dto.Password);
+            if (!result.Succeeded)
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email)
-            };
+                return false;
+            }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            // Rolü kontrol et, yoksa oluþtur
+            if (!await _roleManager.RoleExistsAsync(dto.Role))
+            {
+                await _roleManager.CreateAsync(new IdentityRole(dto.Role));
+            }
 
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddDays(1),
-                signingCredentials: creds);
+            // Kullanýcýya rol ata
+            await _userManager.AddToRoleAsync(user, dto.Role);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return true;
         }
+
+      public async Task<string> LoginAsync(LoginDto loginDto)
+{
+    var user = await _userManager.FindByEmailAsync(loginDto.Email);
+    if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
+        throw new UnauthorizedAccessException();
+
+    // Kullanýcýnýn rollerini almak
+    var roles = await _userManager.GetRolesAsync(user);  // Kullanýcýnýn rollerini alýyoruz
+
+    // JWT token'ý oluþtur
+    return _jwtHelper.CreateToken(user, roles);  // Kullanýcý bilgileri ve roller ile token oluþturuyoruz
+}
+
     }
 }

@@ -1,12 +1,15 @@
 ﻿using CarRentalApp.Business.Extensions;
+using CarRentalApp.Business.Jwt;
 using CarRentalApp.Business.Operations;
 using CarRentalApp.Business.Security;
 using CarRentalApp.Business.Services;
+using CarRentalApp.Business.Services.Mapper;
 using CarRentalApp.Data;
 using CarRentalApp.Data.Entities;
 using CarRentalApp.Data.Repositories;
 using CarRentalApp.Data.UnitOfWork;
 using CarRentalApp.WebApi.Filters;
+using CarRentalApp.WebApi.Mapper;
 using CarRentalApp.WebApi.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
@@ -14,6 +17,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Net;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,14 +26,19 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<CarRentalDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-//Repository ve UnitOfWork bağımlılıklarını çözümle
+// Repository ve UnitOfWork bağımlılıklarını çözümle
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ICarManager, CarManager>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<DataProtectionService>();
+builder.Services.AddScoped<IAuthMapper, AuthMapper>();
 
-//  Identity kullanıcı yönetimini ayarla
+// JwtConfiguration ve JwtHelper'ı DI'ye ekle
+builder.Services.Configure<JwtConfiguration>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddSingleton<JwtHelper>(); // JwtHelper'ı Singleton olarak ekledik
+
+// Identity kullanıcı yönetimini ayarla
 builder.Services.AddIdentity<User, IdentityRole>(options =>
 {
     options.Password.RequiredLength = 6;
@@ -39,7 +48,7 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
 .AddEntityFrameworkStores<CarRentalDbContext>()
 .AddDefaultTokenProviders();
 
-//  JWT Authentication yapılandırması
+// JWT Authentication yapılandırması
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -54,7 +63,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-//  Swagger (API Dokümantasyonu) yapılandırması
+// Swagger (API Dokümantasyonu) yapılandırması
 builder.Services.AddSwaggerGen(options =>
 {
     var jwtSecurityScheme = new OpenApiSecurityScheme
@@ -78,8 +87,10 @@ builder.Services.AddSwaggerGen(options =>
         { jwtSecurityScheme, Array.Empty<string>() }
     });
 });
+// SSL doğrulamasını devre dışı bırakmak için
+ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
 
-//  CORS Politikası
+// CORS Politikası
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
@@ -89,7 +100,7 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader());
 });
 
-//  MVC Controllerları ve Middleware filtrelerini ekle
+// MVC Controllerları ve Middleware filtrelerini ekle
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ValidationFilter>();
@@ -107,11 +118,11 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 
-//  Özel Middleware Kullanımı (Global Hata Yakalama ve Loglama)
+// Özel Middleware Kullanımı (Global Hata Yakalama ve Loglama)
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
-app.UseAuthentication();
+app.UseAuthentication();  // JWT Authentication'ı burada aktif ediyoruz
 app.UseAuthorization();
 
 app.MapControllers();

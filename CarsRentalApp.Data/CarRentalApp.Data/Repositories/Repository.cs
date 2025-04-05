@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace CarRentalApp.Data.Repositories
 {
-    public class Repository<T> : IRepository<T> where T : BaseEntity
+    public class Repository<T> : IRepository<T> where T :BaseEntity
     {
         private readonly CarRentalDbContext _context;
         private readonly DbSet<T> _dbSet;

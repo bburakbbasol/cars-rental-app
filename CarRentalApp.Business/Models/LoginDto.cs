@@ -9,7 +9,7 @@ namespace CarRentalApp.Business.Models
         public string Email { get; set; }
 
         [Required(ErrorMessage = "Þifre alaný zorunludur")]
-        [MinLength(6, ErrorMessage = "Þifre en az 6 karakter olmalýdýr")]
+        [MinLength(4, ErrorMessage = "Þifre en az 4 karakter olmalýdýr")]
         public string Password { get; set; }
     }
 }

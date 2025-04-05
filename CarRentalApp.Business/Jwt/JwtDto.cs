@@ -1,4 +1,4 @@
-﻿namespace CarRentalApp.WebApi.Security.Jwt
+﻿namespace CarRentalApp.Business.Jwt
 {
     public class JwtDto
     {

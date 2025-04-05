@@ -9,5 +9,10 @@
         public string PlateNumber { get; set; }
         public decimal DailyPrice { get; set; }
         public string Color { get; set; }
+        public bool IsAvailable { get; set; }
+        public string? Description { get; set; } = string.Empty;
+        public int CarTypeId { get; set; }
+
+
     }
 }

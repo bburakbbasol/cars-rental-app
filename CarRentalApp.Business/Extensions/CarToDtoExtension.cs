@@ -1,12 +1,12 @@
-using CarRentalApp.Business.Models;
+ï»¿using CarRentalApp.Business.Models;
 using CarRentalApp.Data.Entities;
 
 namespace CarRentalApp.Business.Extensions
 {
-    public static class MappingExtensions
+    public static class CarToDtoExtension
     {
-        // Car entity'sini CarDto'ya dönüþtürmek
-        public static CarDto MapToDto(this Car car)
+        // Car entity'yi CarDto'ya dÃ¶nÃ¼ÅŸtÃ¼rmek iÃ§in extension metodu
+        public static CarDto ToDto(this Car car)
         {
             return new CarDto
             {
@@ -23,8 +23,8 @@ namespace CarRentalApp.Business.Extensions
             };
         }
 
-        // CarDto'yu Car entity'sine dönüþtürmek
-        public static Car MapToEntity(this CarDto carDto)
+        // CarDto'yu Car entity'sine dÃ¶nÃ¼ÅŸtÃ¼rmek iÃ§in extension metodu
+        public static Car ToEntity(this CarDto carDto)
         {
             return new Car
             {
